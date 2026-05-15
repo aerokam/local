@@ -1,0 +1,16 @@
+{
+  "name": "schwab-importer",
+  "version": "1.0.0",
+  "description": "Import Schwab CSV to Google Sheets",
+  "main": "import.js",
+  "scripts": {
+    "schwab": "node importSchwabAccounts.js",
+    "fidelity": "node importFidelityAccounts.js",
+    "watch": "node watch.js"
+  },
+  "dependencies": {
+    "@google-cloud/local-auth": "^3.0.0",
+    "csv-parse": "^5.6.0",
+    "googleapis": "^144.0.0"
+  }
+}
