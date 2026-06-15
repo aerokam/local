@@ -114,10 +114,24 @@ async function authorize() {
   return client;
 }
 
+const TIPS_ROOT = path.resolve(__dirname, '..', 'Treasuries', 'TipsLadderManager');
+
 async function main() {
   console.log(`Reading: ${CSV_PATH}`);
   const allData = parseCsv(CSV_PATH);
   console.log(`Parsed ${allData.length} rows.`);
+
+  // Copy raw CSV to TipsLadderManager/data/ (gitignored) and refresh sanitized test fixtures.
+  try {
+    const dataDir = path.join(TIPS_ROOT, 'data');
+    if (!fs.existsSync(dataDir)) fs.mkdirSync(dataDir, { recursive: true });
+    fs.copyFileSync(CSV_PATH, path.join(dataDir, 'FidelityAllAccounts.csv'));
+    console.log('Copied to TipsLadderManager/data/FidelityAllAccounts.csv');
+    const { execSync } = require('child_process');
+    execSync('node scripts/generate-test-fixtures.js', { cwd: TIPS_ROOT, stdio: 'inherit' });
+  } catch (e) {
+    console.warn('generate-test-fixtures skipped:', e.message);
+  }
 
   const auth = await authorize();
 

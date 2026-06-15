@@ -139,6 +139,8 @@ async function authorize() {
   return client;
 }
 
+const TIPS_ROOT = path.resolve(__dirname, '..', 'Treasuries', 'TipsLadderManager');
+
 async function main() {
   if (SPREADSHEET_ID === 'YOUR_SPREADSHEET_ID_HERE') {
     console.error('Error: set SPREADSHEET_ID in import.js before running.');
@@ -149,6 +151,18 @@ async function main() {
   const allData = parseCsv(CSV_PATH);
   console.log(`Parsed ${allData.length} rows across all accounts.`);
 
+  // Copy raw CSV to TipsLadderManager/data/ (gitignored) and refresh sanitized test fixtures.
+  try {
+    const dataDir = path.join(TIPS_ROOT, 'data');
+    if (!fs.existsSync(dataDir)) fs.mkdirSync(dataDir, { recursive: true });
+    fs.copyFileSync(CSV_PATH, path.join(dataDir, 'SchwabAllAccounts.csv'));
+    console.log('Copied to TipsLadderManager/data/SchwabAllAccounts.csv');
+    const { execSync } = require('child_process');
+    execSync('node scripts/generate-test-fixtures.js', { cwd: TIPS_ROOT, stdio: 'inherit' });
+  } catch (e) {
+    console.warn('generate-test-fixtures skipped:', e.message);
+  }
+
   let auth = await authorize();
 
   try {
@@ -158,7 +172,7 @@ async function main() {
   } catch (err) {
     if (err.message && err.message.includes('invalid_grant')) {
       console.log('Token expired. Re-authenticating...');
-      fs.unlinkSync(TOKEN_PATH);
+      fs.rmSync(TOKEN_PATH, { force: true });
       auth = await authorize();
       console.log('Writing to sheet…');
       await writeToSheet(auth, allData);
