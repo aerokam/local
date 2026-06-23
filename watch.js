@@ -20,6 +20,7 @@ const TRADES_KEYS = new Set([
   'tradesamyira.csv',
   'tradesamypod.csv',
   'tradesdana.csv',
+  'tradesinherited.csv',
 ]);
 
 const debounces = {};

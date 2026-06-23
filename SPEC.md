@@ -52,6 +52,7 @@ Watches `~/Downloads` for brokerage export files and automatically pushes them i
   | `TradesAmyIRA.csv` | `TradesAmyIRA` | 1839917397 |
   | `TradesAmyPOD.csv` | `TradesAmyPOD` | 1218857201 |
   | `TradesDana.csv` | `TradesDana` | 74383282 |
+  | `TradesInherited.csv` | `TradesInheritedIRA` | 392046034 |
 
 - **Behavior:** Appends to the sheet (does not overwrite). Post-processing after append:
   1. Copies formulas from the row above the inserted block (cols I+) into all new rows

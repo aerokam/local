@@ -15,6 +15,7 @@ const SHEET_MAP = {
   'tradesamyira.csv':  { sheetId: 1839917397, name: 'TradesAmyIRA' },
   'tradesamypod.csv':  { sheetId: 1218857201, name: 'TradesAmyPOD' },
   'tradesdana.csv':    { sheetId: 74383282,   name: 'TradesDana' },
+  'tradesinherited.csv': { sheetId: 392046034, name: 'TradesInheritedIRA' },
 };
 // ─────────────────────────────────────────────────────────────────────────────
 
