@@ -2,8 +2,8 @@ const fs = require('fs');
 const path = require('path');
 const os = require('os');
 const { google } = require('googleapis');
-const { authenticate } = require('@google-cloud/local-auth');
 const { parse } = require('csv-parse/sync');
+const { authorize } = require('./auth');
 
 // ── Config ────────────────────────────────────────────────────────────────────
 const SPREADSHEET_ID = '1epVEbtnjE18fx9PBLrLFCrKw_D0pScIk31LV8qnv4J8'; // from the sheet URL
@@ -107,38 +107,6 @@ async function writeToSheet(auth, allData) {
   });
 }
 
-const CREDENTIALS_PATH = path.join(__dirname, 'credentials.json');
-const TOKEN_PATH        = path.join(__dirname, 'token.json');
-const SCOPES            = ['https://www.googleapis.com/auth/spreadsheets'];
-
-async function loadSavedCredentials() {
-  try {
-    const content = JSON.parse(fs.readFileSync(TOKEN_PATH, 'utf8'));
-    return google.auth.fromJSON(content);
-  } catch {
-    return null;
-  }
-}
-
-async function saveCredentials(client) {
-  const keys = JSON.parse(fs.readFileSync(CREDENTIALS_PATH, 'utf8'));
-  const key = keys.installed || keys.web;
-  fs.writeFileSync(TOKEN_PATH, JSON.stringify({
-    type: 'authorized_user',
-    client_id: key.client_id,
-    client_secret: key.client_secret,
-    refresh_token: client.credentials.refresh_token,
-  }));
-}
-
-async function authorize() {
-  let client = await loadSavedCredentials();
-  if (client) return client;
-  client = await authenticate({ keyfilePath: CREDENTIALS_PATH, scopes: SCOPES });
-  await saveCredentials(client);
-  return client;
-}
-
 const TIPS_ROOT = path.resolve(__dirname, '..', 'Treasuries', 'TipsLadderManager');
 
 async function main() {
@@ -163,24 +131,11 @@ async function main() {
     console.warn('generate-test-fixtures skipped:', e.message);
   }
 
-  let auth = await authorize();
+  const auth = await authorize();
 
-  try {
-    console.log('Writing to sheet…');
-    await writeToSheet(auth, allData);
-    console.log('Done.');
-  } catch (err) {
-    if (err.message && err.message.includes('invalid_grant')) {
-      console.log('Token expired. Re-authenticating...');
-      fs.rmSync(TOKEN_PATH, { force: true });
-      auth = await authorize();
-      console.log('Writing to sheet…');
-      await writeToSheet(auth, allData);
-      console.log('Done.');
-    } else {
-      throw err;
-    }
-  }
+  console.log('Writing to sheet…');
+  await writeToSheet(auth, allData);
+  console.log('Done.');
 }
 
 main().catch(err => {

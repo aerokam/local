@@ -12,8 +12,8 @@ Watches `~/Downloads` for brokerage export files and automatically pushes them i
 | `importSchwabAccounts.js` | Parses Schwab multi-account CSV → Google Sheets |
 | `importFidelityAccounts.js` | Parses Fidelity CSV → Google Sheets |
 | `importTrades.js` | Appends trades CSV → correct account sheet based on filename |
-| `credentials.json` | Google OAuth client credentials (from Google Cloud Console) |
-| `token.json` | Saved OAuth token (auto-generated on first auth) |
+| `auth.js` | Shared service-account auth — all importers call `authorize()` from here |
+| `sheetsimporter.json` | Google service account key (from Google Cloud Console) |
 
 ---
 
@@ -105,9 +105,14 @@ No manual start needed after login.
 
 ---
 
-## Auth Setup (first time only)
+## Auth Setup
 
-Google OAuth credentials are stored in `credentials.json` (OAuth client from Google Cloud Console, Sheets API scope). On first run, a browser window opens for consent. The token is saved to `token.json` and reused on subsequent runs.
+Uses a Google service account (no interactive consent, no expiring refresh token — required since the watcher runs unattended via Task Scheduler). The key lives in `sheetsimporter.json`; `auth.js` loads it and every importer calls `authorize()` from there.
+
+Setup (Google Cloud Console, project `sheetsimporter-495018`):
+1. IAM & Admin → Service Accounts → create one, download its JSON key as `sheetsimporter.json` in this folder.
+2. Share each target spreadsheet with the service account's email as Editor.
+3. Confirm the Google Sheets API is enabled for the project.
 
 Required scope: `https://www.googleapis.com/auth/spreadsheets`
 

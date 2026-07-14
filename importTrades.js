@@ -2,8 +2,8 @@ const fs = require('fs');
 const path = require('path');
 const os = require('os');
 const { google } = require('googleapis');
-const { authenticate } = require('@google-cloud/local-auth');
 const { parse } = require('csv-parse/sync');
+const { authorize } = require('./auth');
 
 // ── Config ────────────────────────────────────────────────────────────────────
 const SPREADSHEET_ID = '1epVEbtnjE18fx9PBLrLFCrKw_D0pScIk31LV8qnv4J8';
@@ -18,10 +18,6 @@ const SHEET_MAP = {
   'tradesinherited.csv': { sheetId: 392046034, name: 'TradesInheritedIRA' },
 };
 // ─────────────────────────────────────────────────────────────────────────────
-
-const CREDENTIALS_PATH = path.join(__dirname, 'credentials.json');
-const TOKEN_PATH        = path.join(__dirname, 'token.json');
-const SCOPES            = ['https://www.googleapis.com/auth/spreadsheets'];
 
 function safeConvert(val) {
   const cleaned = String(val).replace(/[$,%]/g, '').trim();
@@ -238,34 +234,6 @@ async function importToSheet(sheets, csvData, sheetConfig) {
       ],
     },
   });
-}
-
-async function loadSavedCredentials() {
-  try {
-    const content = JSON.parse(fs.readFileSync(TOKEN_PATH, 'utf8'));
-    return google.auth.fromJSON(content);
-  } catch {
-    return null;
-  }
-}
-
-async function saveCredentials(client) {
-  const keys = JSON.parse(fs.readFileSync(CREDENTIALS_PATH, 'utf8'));
-  const key = keys.installed || keys.web;
-  fs.writeFileSync(TOKEN_PATH, JSON.stringify({
-    type: 'authorized_user',
-    client_id: key.client_id,
-    client_secret: key.client_secret,
-    refresh_token: client.credentials.refresh_token,
-  }));
-}
-
-async function authorize() {
-  let client = await loadSavedCredentials();
-  if (client) return client;
-  client = await authenticate({ keyfilePath: CREDENTIALS_PATH, scopes: SCOPES });
-  await saveCredentials(client);
-  return client;
 }
 
 async function main() {
