@@ -119,6 +119,11 @@ async function main() {
   const allData = parseCsv(CSV_PATH);
   console.log(`Parsed ${allData.length} rows across all accounts.`);
 
+  const auth = await authorize();
+
+  console.log('Writing to sheet…');
+  await writeToSheet(auth, allData);
+
   // Copy raw CSV to TipsLadderManager/data/ (gitignored) and refresh sanitized test fixtures.
   try {
     const dataDir = path.join(TIPS_ROOT, 'data');
@@ -131,10 +136,6 @@ async function main() {
     console.warn('generate-test-fixtures skipped:', e.message);
   }
 
-  const auth = await authorize();
-
-  console.log('Writing to sheet…');
-  await writeToSheet(auth, allData);
   console.log('Done.');
 }
 
