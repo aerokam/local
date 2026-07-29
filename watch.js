@@ -36,7 +36,14 @@ function runImport(filename, command) {
 
 fs.watch(DOWNLOADS, (event, filename) => {
   if (!filename) return;
-  if (!fs.existsSync(path.join(DOWNLOADS, filename))) return; // ignore deletions
+  const fullPath = path.join(DOWNLOADS, filename);
+  if (!fs.existsSync(fullPath)) return; // ignore deletions
+
+  // Windows ReadDirectoryChangesW can misattribute an event elsewhere in
+  // Downloads to this filename (e.g. AV touching it right after another
+  // file lands). Require the file to have actually been written recently.
+  const { mtimeMs } = fs.statSync(fullPath);
+  if (Date.now() - mtimeMs > 10000) return;
 
   const key = filename.toLowerCase();
   let command;
