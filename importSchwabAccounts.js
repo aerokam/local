@@ -72,7 +72,12 @@ function parseCsv(csvPath) {
         if (!r || r.every(c => c.trim() === '')) { k++; continue; }
         if (r.includes('Symbol') || accountPattern.test(r.join(' ').trim())) break;
 
-        const rowData = fieldIndexes.map(idx => idx === -1 ? '' : safeConvert(r[idx] || ''));
+        const rowData = fieldIndexes.map((idx, fi) => {
+          if (idx === -1) return '';
+          const v = safeConvert(r[idx] || '');
+          if (typeof v === 'number' && INCLUDE_FIELDS[fi] === 'Gain % (Gain/Loss %)') return v / 100;
+          return v;
+        });
         if (rowData.some(v => v !== '')) allData.push([currentAccount, ...rowData]);
         k++;
       }
