@@ -45,12 +45,24 @@ function parseCsv(csvPath) {
   return rows.map(row => row.map(safeConvert));
 }
 
-async function getColCount(sheets, sheetName, rowNum) {
+// Scans backward from lastRowBefore for the nearest row with formula content
+// in cols I+. Reads with valueRenderOption FORMULA (not evaluated values) so a
+// row whose trailing formulas evaluate blank isn't mistaken for a short row,
+// and skips past any broken rows a prior failed import may have left behind.
+async function findFormulaTemplateRow(sheets, sheetName, lastRowBefore) {
+  const scanStart = Math.max(1, lastRowBefore - 50);
   const res = await sheets.spreadsheets.values.get({
     spreadsheetId: SPREADSHEET_ID,
-    range: `${sheetName}!${rowNum}:${rowNum}`,
+    range: `${sheetName}!I${scanStart}:${lastRowBefore}`,
+    valueRenderOption: 'FORMULA',
   });
-  return (res.data.values?.[0] || []).length;
+  const rows = res.data.values || [];
+  for (let i = rows.length - 1; i >= 0; i--) {
+    if (rows[i] && rows[i].length > 0) {
+      return { row1: scanStart + i, colCount: 8 + rows[i].length };
+    }
+  }
+  return null;
 }
 
 async function getLastRow(sheets, sheetName) {
@@ -59,6 +71,41 @@ async function getLastRow(sheets, sheetName) {
     range: `${sheetName}!A:A`,
   });
   return (res.data.values || []).length;
+}
+
+// Two overlapping imports into the same sheet (e.g. the background watcher
+// and a manual run, or a double-triggered file event) race on
+// appendDimension/values.update: each writes to the row number it computed
+// before the other one appended, corrupting the sheet with blank or
+// overwritten rows. This lock serializes imports per sheet so overlapping
+// triggers queue up instead of racing.
+const LOCK_STALE_MS = 5 * 60 * 1000; // treat a lock older than this as abandoned (crashed process)
+const LOCK_WAIT_MS  = 60 * 1000;     // give up waiting after this long
+
+async function acquireLock(sheetId) {
+  const lockPath = path.join(__dirname, `.import-${sheetId}.lock`);
+  const start = Date.now();
+  for (;;) {
+    try {
+      fs.writeFileSync(lockPath, String(process.pid), { flag: 'wx' });
+      return lockPath;
+    } catch (err) {
+      if (err.code !== 'EEXIST') throw err;
+      const age = Date.now() - fs.statSync(lockPath).mtimeMs;
+      if (age > LOCK_STALE_MS) {
+        fs.unlinkSync(lockPath); // abandoned lock from a crashed run
+        continue;
+      }
+      if (Date.now() - start > LOCK_WAIT_MS) {
+        throw new Error(`Another import is already running for this sheet (lock held ${Math.round(age / 1000)}s) — aborting instead of racing it.`);
+      }
+      await new Promise(resolve => setTimeout(resolve, 1000));
+    }
+  }
+}
+
+function releaseLock(lockPath) {
+  try { fs.unlinkSync(lockPath); } catch { /* already gone */ }
 }
 
 async function importToSheet(sheets, csvData, sheetConfig) {
@@ -70,7 +117,9 @@ async function importToSheet(sheets, csvData, sheetConfig) {
   if (numDataRows === 0) throw new Error('CSV has no data rows.');
 
   const lastRowBefore = await getLastRow(sheets, name);   // 1-indexed last existing row
-  const lastColBefore = await getColCount(sheets, name, lastRowBefore); // col count of last existing row
+  const template = await findFormulaTemplateRow(sheets, name, lastRowBefore);
+  const lastColBefore = template ? template.colCount : 8; // formula extent of nearest intact row
+  const formulaSourceRow1 = template ? template.row1 : lastRowBefore; // row to copy formulas from
 
   const insertAt0    = lastRowBefore;          // 0-indexed insert position
   const firstRow1    = lastRowBefore + 1;      // 1-indexed first new data row
@@ -106,8 +155,8 @@ async function importToSheet(sheets, csvData, sheetConfig) {
           copyPaste: {
             source: {
               sheetId,
-              startRowIndex: lastRowBefore - 1, // 0-indexed last existing row
-              endRowIndex:   lastRowBefore,
+              startRowIndex: formulaSourceRow1 - 1, // 0-indexed nearest intact formula row
+              endRowIndex:   formulaSourceRow1,
               startColumnIndex: 8,              // col I
               endColumnIndex:   lastColBefore,
             },
@@ -258,8 +307,13 @@ async function main() {
   const auth = await authorize();
   const sheets = google.sheets({ version: 'v4', auth });
 
-  console.log('Writing to sheet…');
-  await importToSheet(sheets, csvData, sheetConfig);
+  const lockPath = await acquireLock(sheetConfig.sheetId);
+  try {
+    console.log('Writing to sheet…');
+    await importToSheet(sheets, csvData, sheetConfig);
+  } finally {
+    releaseLock(lockPath);
+  }
   console.log('Done.');
 }
 

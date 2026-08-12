@@ -54,8 +54,9 @@ Watches `~/Downloads` for brokerage export files and automatically pushes them i
   | `TradesDana.csv` | `TradesDana` | 74383282 |
   | `TradesInherited.csv` | `TradesInheritedIRA` | 392046034 |
 
+- **Concurrency:** Acquires a per-sheet lockfile (`.import-<sheetId>.lock`) before writing, so two overlapping imports into the same account sheet (e.g. if `watch.js` is ever running in two places at once) queue instead of racing on the append/write steps. A lock older than 5 minutes is treated as abandoned and reclaimed; waits up to 60s before giving up. This does not deduplicate — two imports of the same CSV still produce duplicate rows, just no longer corrupted ones.
 - **Behavior:** Appends to the sheet (does not overwrite). Post-processing after append:
-  1. Copies formulas from the row above the inserted block (cols I+) into all new rows
+  1. Copies formulas (cols I+) into all new rows, sourced from the nearest preceding row that actually has formula content — scans backward up to 50 rows so a prior row left without formulas (e.g. from an earlier failed import) doesn't get used as the template
   2. Merges adjacent Full Redemption row pairs (copies lower row's qty to upper, deletes lower)
   3. Deletes SWVXX and SNSXX rows (money market)
   4. Formats: col A = `MM/dd/yy`, col E = `#,##0`, col F = `#,##0.0000`, col H = `#,##0.00`
@@ -96,12 +97,13 @@ node importTrades.js TradesIRA.csv
 
 ## Automation
 
-A Windows Task Scheduler task (`SchwabFidelityWatcher`) runs `watch.js` automatically at logon using:
+A Windows Task Scheduler task (`SchwabFidelityWatcher`) runs `watch.js` automatically at logon:
 ```
 C:\Program Files\nodejs\node.exe  C:\Users\aerok\projects\Local\watch.js
 ```
+Configured with Interactive logon and Limited run level (not "run whether user is logged on or not," not elevated), so it starts in the user's desktop session and opens a normal visible console window — the same as running it manually, except automatic.
 
-No manual start needed after login.
+Only one instance of `watch.js` should run at a time. Two instances watching the same Downloads folder both react to the same file write and both call `importTrades.js`, which corrupts or duplicates data in the target sheet (see `importTrades.js`'s per-sheet lock below — it prevents the two instances from *racing*, but does not prevent them from *duplicating* an import, since neither instance knows about the other). Do not also start `watch.js` manually in a terminal if the scheduled task is enabled.
 
 ---
 
