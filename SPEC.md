@@ -28,6 +28,7 @@ Watches `~/Downloads` for brokerage export files and automatically pushes them i
 - **Columns written:** Account name + 7 selected fields:
   - Symbol, Description, Qty, Price, Mkt Val, Gain $, Gain %
 - **Parsing:** Multi-account CSV — detects account headers, groups rows by account, inserts blank separator rows between accounts. Strips `$`, `%`, `,` and converts numeric strings to numbers.
+- **After the sheet write:** copies the CSV to `Treasuries/TipsLadderManager/data/SchwabAllAccounts.csv` (gitignored) and runs `Treasuries/TipsLadderManager/scripts/generate-test-fixtures.js`. That script rebuilds TipsLadderManager's sample holdings and its sanitized Schwab test file, commits them, and pushes that commit alone; other unpushed commits in the Treasuries checkout are not pushed with it (Treasuries `knowledge/Testing.md` §4.0). A failure in this step is logged and does not affect the sheet write, which has already completed.
 
 ### Fidelity — `importFidelityAccounts.js`
 
@@ -37,6 +38,7 @@ Watches `~/Downloads` for brokerage export files and automatically pushes them i
 - **Anchor:** `B1` (row 1, col B)
 - **Columns written:** First 16 columns of the CSV (B:Q)
 - **Parsing:** Straight dump — no account grouping. All rows written as-is after numeric conversion. Column B is formatted as plain text after write (matches GAS `setNumberFormat("@")`).
+- **After the sheet write:** nothing. No test reads Fidelity holdings, so this importer does not touch the Treasuries repository.
 
 ### Trades — `importTrades.js`
 
