@@ -1,6 +1,6 @@
 # Brokerage CSV → Google Sheets Importer
 
-Watches `~/Downloads` for brokerage export files and automatically pushes them into Google Sheets. Supports Schwab, Fidelity, and per-account trades. Triggered on file download; no manual step required.
+Watches `~/Downloads` for brokerage export files and automatically pushes them into Google Sheets. Supports Schwab, Fidelity, and per-account trades, plus the Kevin IRA DARA plan (to TipsLadderManager, not a sheet). Triggered on file download; no manual step required.
 
 ---
 
@@ -12,6 +12,7 @@ Watches `~/Downloads` for brokerage export files and automatically pushes them i
 | `importSchwabAccounts.js` | Parses Schwab multi-account CSV → Google Sheets |
 | `importFidelityAccounts.js` | Parses Fidelity CSV → Google Sheets |
 | `importTrades.js` | Appends trades CSV → correct account sheet based on filename |
+| `importDaraPlan.js` | Copies the Kevin IRA DARA plan to TipsLadderManager and refreshes its sample DARA plan |
 | `auth.js` | Shared service-account auth — all importers call `authorize()` from here |
 | `sheetsimporter.json` | Google service account key (from Google Cloud Console) |
 
@@ -39,6 +40,11 @@ Watches `~/Downloads` for brokerage export files and automatically pushes them i
 - **Columns written:** First 16 columns of the CSV (B:Q)
 - **Parsing:** Straight dump — no account grouping. All rows written as-is after numeric conversion. Column B is formatted as plain text after write (matches GAS `setNumberFormat("@")`).
 - **After the sheet write:** nothing. No test reads Fidelity holdings, so this importer does not touch the Treasuries repository.
+
+### DARA plan — `importDaraPlan.js`
+
+- **Source file:** `~/Downloads/dara-plan-kevin-rmd.csv` (the Kevin IRA's DARA plan, exported from TipsLadderManager)
+- **Writes:** no sheet. Copies the file to `Treasuries/TipsLadderManager/data/DaraPlanKevinRmd.csv` (gitignored) and runs `Treasuries/TipsLadderManager/scripts/generate-test-fixtures.js`, which rewrites `data/SampleDaraPlan.csv` (and `data/SampleHoldings.csv` from the last Schwab download) at a scale factor of 0.5, commits them, and pushes that commit alone (Treasuries `knowledge/Testing.md` §4.0).
 
 ### Trades — `importTrades.js`
 
@@ -78,6 +84,7 @@ All filenames matched case-insensitively. Debounce timers are per-file and indep
 ```
 SchwabAllAccounts.csv      →  importSchwabAccounts.js
 FidelityAllAccounts.csv    →  importFidelityAccounts.js
+dara-plan-kevin-rmd.csv    →  importDaraPlan.js
 Trades<Account>.csv        →  importTrades.js "<filename>"
 ```
 

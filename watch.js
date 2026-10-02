@@ -9,6 +9,7 @@ const DOWNLOADS = path.join(os.homedir(), 'Downloads');
 const STATIC_TARGETS = {
   'schwaballaccounts.csv': 'node importSchwabAccounts.js',
   'fidelityallaccounts.csv': 'node importFidelityAccounts.js',
+  'dara-plan-kevin-rmd.csv': 'node importDaraPlan.js',
 };
 
 // Trades files matched case-insensitively; actual filename passed to script
