@@ -106,7 +106,7 @@ node importTrades.js TradesIRA.csv
 
 ## Automation
 
-A Windows Task Scheduler task (`SchwabFidelityWatcher`) runs `watch.js` automatically at logon:
+A Windows Task Scheduler task (`DownloadsWatcher`) runs `watch.js` automatically at logon:
 ```
 C:\Program Files\nodejs\node.exe  C:\Users\aerok\projects\Local\watch.js
 ```
